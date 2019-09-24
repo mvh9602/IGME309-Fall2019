@@ -14,7 +14,8 @@ Date: 2017/05
 
 class Application
 {
-	MyMesh* m_pMesh = nullptr;
+	std::vector<MyMesh*> m_pMeshVector;
+	//MyMesh* m_pMesh = nullptr;
 	String m_sProgrammer = "Alberto Bobadilla - labigm@rit.edu";
 
 private:
