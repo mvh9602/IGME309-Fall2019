@@ -61,12 +61,32 @@ void Application::Display(void)
 	//your code goes here
 	v3CurrentPos = vector3(0.0f, 0.0f, 0.0f);
 	//-------------------
-	
 
+	vector3 start;
+	vector3 end;
+	static uint routeIndex = 0;
+	start = m_stopsList[routeIndex];
+	if (routeIndex >= m_stopsList.size())
+	{
+		routeIndex = 0;
+	}
+	end = m_stopsList[routeIndex + 1];
+
+	float lerpTime = 2.0f;
+	float lerpPercentage = MapValue(fTimer, 0.0f, lerpTime, 0.0f, 1.0f);
+
+	v3CurrentPos = glm::lerp(start, end, lerpPercentage);
 
 	
-	matrix4 m4Model = glm::translate(v3CurrentPos);
+	matrix4 m4Model = glm::translate(IDENTITY_M4, v3CurrentPos);
 	m_pModel->SetModelMatrix(m4Model);
+
+	if (lerpPercentage >= 1.0f)
+	{
+		routeIndex++;
+		fTimer = m_pSystem->GetDeltaTime(uClock);
+		routeIndex %= m_stopsList.size();
+	}
 
 	m_pMeshMngr->Print("\nTimer: ");//Add a line on top
 	m_pMeshMngr->PrintLine(std::to_string(fTimer), C_YELLOW);
@@ -76,6 +96,7 @@ void Application::Display(void)
 	{
 		m_pMeshMngr->AddSphereToRenderList(glm::translate(m_stopsList[i]) * glm::scale(vector3(0.05f)), C_GREEN, RENDER_WIRE);
 	}
+
 	
 	// draw a skybox
 	m_pMeshMngr->AddSkyboxToRenderList();
