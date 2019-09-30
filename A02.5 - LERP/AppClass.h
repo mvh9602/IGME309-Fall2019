@@ -20,6 +20,7 @@ class Application
 {
 	uint m_uOrbits = 0; //number of shapes starting at 3 and increasing in sides
 	std::vector<uint> m_shapeList; //shape index for circles
+	std::vector<std::vector<vector3>> circleList; //vector for holding circles and their respective vertices
 	String m_sProgrammer = "Alberto Bobadilla - labigm@rit.edu";
 	
 private:
@@ -32,6 +33,8 @@ private:
 	bool m_bFPC = false;// First Person Camera flag
 	bool m_bArcBall = false;// Arcball flag
 	quaternion m_qArcBall; //ArcBall quaternion
+
+	std::vector<uint> routeIndexList; //replaces static uint in normal LERP code to serve all circles
 	
 	vector3 m_v3Light; //position of light 1
 	vector4 m_v4ClearColor; //Color of the scene

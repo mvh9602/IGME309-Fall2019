@@ -32,12 +32,25 @@ void Application::InitVariables(void)
 		This part will create the orbits, it start at 3 because that is the minimum subdivisions a torus can have
 	*/
 	uint uSides = 3; //start with the minimal 3 sides
+	float angle = (2 * PI) / uSides;
 	for (uint i = uSides; i < m_uOrbits + uSides; i++)
 	{
+		std::vector<vector3> circle;
+		routeIndexList.push_back(0);
 		vector3 v3Color = WaveLengthToRGB(uColor); //calculate color based on wavelength
 		m_shapeList.push_back(m_pMeshMngr->GenerateTorus(fSize, fSize - 0.1f, 3, i, v3Color)); //generate a custom torus and add it to the meshmanager
 		fSize += 0.5f; //increment the size for the next orbit
 		uColor -= static_cast<uint>(decrements); //decrease the wavelength
+		
+		// generate circle vertices overtop each torus
+		for (int j = 0; j < i; j++)
+		{
+			float x1 = fSize * cos(angle * j);
+			float y1 = fSize * sin(angle * j);
+			circle.push_back(vector3(x1, y1, 0));
+		}
+		// all circles are stored in a vector of vectors
+		circleList.push_back(circle);
 	}
 }
 void Application::Update(void)
@@ -64,6 +77,12 @@ void Application::Display(void)
 	*/
 	//m4Offset = glm::rotate(IDENTITY_M4, 1.5708f, AXIS_Z);
 
+	//Get a timer
+	static float fTimer = 0;	//store the new timer
+	static uint uClock = m_pSystem->GenClock(); //generate a new clock for that timer
+	fTimer += m_pSystem->GetDeltaTime(uClock); //get the delta time for that timer
+
+
 	// draw a shapes
 	for (uint i = 0; i < m_uOrbits; ++i)
 	{
@@ -71,7 +90,32 @@ void Application::Display(void)
 
 		//calculate the current position
 		vector3 v3CurrentPos = ZERO_V3;
+		vector3 start;
+		vector3 end;
+		// LERP calculation done for each circle
+		start = circleList[i][routeIndexList[i]];
+		if (routeIndexList[i] >= circleList[i].size())
+		{
+			routeIndexList[i] = 0;
+		}
+		// added this if because the loop kept going out of bounds
+		if(circleList[i].size() < routeIndexList[i] + 1)
+			end = circleList[i][routeIndexList[i] + 1];
+
+		float lerpTime = 2.0f;
+		float lerpPercentage = MapValue(fTimer, 0.0f, lerpTime, 0.0f, 1.0f);
+
+		v3CurrentPos = glm::lerp(start, end, lerpPercentage);
 		matrix4 m4Model = glm::translate(m4Offset, v3CurrentPos);
+
+		// something is wrong with my route indexes I believe
+		// all my spheres currently seek the origin, then teleport back to their ogirin after arriving
+		if (lerpPercentage >= 1.0f)
+		{
+			routeIndexList[i]++;
+			fTimer = m_pSystem->GetDeltaTime(uClock);
+			routeIndexList[i] %= circleList[i].size();
+		}
 
 		//draw spheres
 		m_pMeshMngr->AddSphereToRenderList(m4Model * glm::scale(vector3(0.1)), C_WHITE);
