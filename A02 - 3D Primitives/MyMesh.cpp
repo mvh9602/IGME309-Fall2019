@@ -227,15 +227,15 @@ void MyMesh::GenerateCuboid(vector3 a_v3Dimensions, vector3 a_v3Color)
 	//3--2
 	//|  |
 	//0--1
-	vector3 point0(-v3Value.x, -v3Value.y, v3Value.z); //0
-	vector3 point1(v3Value.x, -v3Value.y, v3Value.z); //1
-	vector3 point2(v3Value.x, v3Value.y, v3Value.z); //2
-	vector3 point3(-v3Value.x, v3Value.y, v3Value.z); //3
+	vector3 point0(-v3Value.x, -v3Value.y, v3Value.z); //0 - lower top left
+	vector3 point1(v3Value.x, -v3Value.y, v3Value.z); //1 - lower top right
+	vector3 point2(v3Value.x, v3Value.y, v3Value.z); //2 - upper top right
+	vector3 point3(-v3Value.x, v3Value.y, v3Value.z); //3 - upper top left
 
-	vector3 point4(-v3Value.x, -v3Value.y, -v3Value.z); //4
-	vector3 point5(v3Value.x, -v3Value.y, -v3Value.z); //5
-	vector3 point6(v3Value.x, v3Value.y, -v3Value.z); //6
-	vector3 point7(-v3Value.x, v3Value.y, -v3Value.z); //7
+	vector3 point4(-v3Value.x, -v3Value.y, -v3Value.z); //4 - lower bottom left
+	vector3 point5(v3Value.x, -v3Value.y, -v3Value.z); //5 - lower bottom right
+	vector3 point6(v3Value.x, v3Value.y, -v3Value.z); //6 - upper bottom right
+	vector3 point7(-v3Value.x, v3Value.y, -v3Value.z); //7 - upper bottom left
 
 	//F
 	AddQuad(point0, point1, point3, point2);
@@ -276,7 +276,35 @@ void MyMesh::GenerateCone(float a_fRadius, float a_fHeight, int a_nSubdivisions,
 	Init();
 
 	// Replace this with your code
-	GenerateCube(a_fRadius * 2.0f, a_v3Color);
+	// vector for holding all circle vertices
+	std::vector<vector3> vertexes;
+	vector3 centerVertex(0, 0, 0);
+	vector3 topVertex(0, a_fHeight, 0);
+	float angle = (2 * PI) / a_nSubdivisions;
+	// circle generation code
+	for (int i = 0; i < a_nSubdivisions; i++)
+	{
+		float x1 = a_fRadius * cos(angle * i);
+		float z1 = a_fRadius * sin(angle * i);
+		float x2 = a_fRadius * cos(angle * (i + 1));
+		float z2 = a_fRadius * sin(angle * (i + 1));
+		vector3 firstVertex(x1, 0, z1);
+		// only push first vertex or vector will contain multiple of the same vertex
+		vertexes.push_back(firstVertex);
+		vector3 secondVertex(x2, 0, z2);
+		// create geometry of the circle
+		AddTri(centerVertex, firstVertex, secondVertex);
+	}
+
+	// go around circle of vertices and connect up to the top vertex
+	for (int i = 0; i < vertexes.size(); i++)
+	{
+		if(i < vertexes.size() - 1)
+			AddTri(vertexes[i + 1], vertexes[i], topVertex);
+		// last shapes in the circle wrap back to the first vertices
+		else
+			AddTri(vertexes[0], vertexes[i], topVertex);
+	}
 	// -------------------------------
 
 	// Adding information about color
@@ -300,7 +328,41 @@ void MyMesh::GenerateCylinder(float a_fRadius, float a_fHeight, int a_nSubdivisi
 	Init();
 
 	// Replace this with your code
-	GenerateCube(a_fRadius * 2.0f, a_v3Color);
+	// vectors for holding separate circle vertices
+	std::vector<vector3> topVertexes;
+	std::vector<vector3> bottomVertexes;
+	vector3 centerVertex(0, 0, 0);
+	vector3 topVertex(0, a_fHeight, 0);
+	float angle = (2 * PI) / a_nSubdivisions;
+	// circle generation code
+	for (int i = 0; i < a_nSubdivisions; i++)
+	{
+		float x1 = a_fRadius * cos(angle * i);
+		float z1 = a_fRadius * sin(angle * i);
+		float x2 = a_fRadius * cos(angle * (i + 1));
+		float z2 = a_fRadius * sin(angle * (i + 1));
+		vector3 bottomFirstVertex(x1, 0, z1);
+		// only push first vertex or vector will contain multiple of the same vertex
+		bottomVertexes.push_back(bottomFirstVertex);
+		vector3 topFirstVertex(x1, a_fHeight, z1);
+		// only push first vertex or vector will contain multiple of the same vertex
+		topVertexes.push_back(topFirstVertex);
+		vector3 bottomSecondVertex(x2, 0, z2);
+		vector3 topSecondVertex(x2, a_fHeight, z2);
+		// create geometry of the two circles
+		AddTri(centerVertex, bottomFirstVertex, bottomSecondVertex);
+		AddTri(topSecondVertex, topFirstVertex, topVertex);
+	}
+
+	// connect top and bottom circles together with quads
+	for (int i = 0; i < bottomVertexes.size(); i++)
+	{
+		if (i < bottomVertexes.size() - 1)
+			AddQuad(bottomVertexes[i + 1], bottomVertexes[i], topVertexes[i + 1], topVertexes[i]);
+		// last shapes in the circle wrap back to the first vertices
+		else
+			AddQuad(bottomVertexes[0], bottomVertexes[i], topVertexes[0], topVertexes[i]);
+	}
 	// -------------------------------
 
 	// Adding information about color
@@ -330,7 +392,59 @@ void MyMesh::GenerateTube(float a_fOuterRadius, float a_fInnerRadius, float a_fH
 	Init();
 
 	// Replace this with your code
-	GenerateCube(a_fOuterRadius * 2.0f, a_v3Color);
+	// vectors for holding separate circle vertices
+	std::vector<vector3> outerTopVertexes;
+	std::vector<vector3> outerBottomVertexes;
+	std::vector<vector3> innerTopVertexes;
+	std::vector<vector3> innerBottomVertexes;
+	vector3 centerVertex(0, 0, 0);
+	vector3 topVertex(0, a_fHeight, 0);
+	float angle = (2 * PI) / a_nSubdivisions;
+	// outer circle generation code
+	for (int i = 0; i < a_nSubdivisions; i++)
+	{
+		float x1 = a_fOuterRadius * cos(angle * i);
+		float z1 = a_fOuterRadius * sin(angle * i);
+		vector3 bottomFirstVertex(x1, 0, z1);
+		outerBottomVertexes.push_back(bottomFirstVertex);
+		vector3 topFirstVertex(x1, a_fHeight, z1);
+		outerTopVertexes.push_back(topFirstVertex);
+		// no geometry here this time, easier to handle later
+	}
+	// inner circle generation code
+	for (int i = 0; i < a_nSubdivisions; i++)
+	{
+		float x1 = a_fInnerRadius * cos(angle * i);
+		float z1 = a_fInnerRadius * sin(angle * i);
+		vector3 bottomFirstVertex(x1, 0, z1);
+		innerBottomVertexes.push_back(bottomFirstVertex);
+		vector3 topFirstVertex(x1, a_fHeight, z1);
+		innerTopVertexes.push_back(topFirstVertex);
+		// no geometry here this time, easier to handle later
+	}
+
+	// connect inner bottom -> outer bottom   (bottom ring)
+	// connect outer bottom -> outer top      (outside faces)
+	// connect inner bottom -> inner top      (inside faces)
+	// connect outer top -> inner top         (top ring)
+	for (int i = 0; i < outerBottomVertexes.size(); i++)
+	{
+		if (i < outerBottomVertexes.size() - 1)
+		{
+			AddQuad(innerBottomVertexes[i + 1], innerBottomVertexes[i], outerBottomVertexes[i + 1], outerBottomVertexes[i]);
+			AddQuad(outerBottomVertexes[i + 1], outerBottomVertexes[i], outerTopVertexes[i + 1], outerTopVertexes[i]);
+			AddQuad(innerBottomVertexes[i], innerBottomVertexes[i + 1], innerTopVertexes[i], innerTopVertexes[i + 1]);
+			AddQuad(outerTopVertexes[i + 1], outerTopVertexes[i], innerTopVertexes[i + 1], innerTopVertexes[i]);
+		}
+		// last shapes in the circle wrap back to the first vertices
+		else
+		{
+			AddQuad(innerBottomVertexes[0], innerBottomVertexes[i], outerBottomVertexes[0], outerBottomVertexes[i]);
+			AddQuad(outerBottomVertexes[0], outerBottomVertexes[i], outerTopVertexes[0], outerTopVertexes[i]);
+			AddQuad(innerBottomVertexes[i], innerBottomVertexes[0], innerTopVertexes[i], innerTopVertexes[0]);
+			AddQuad(outerTopVertexes[0], outerTopVertexes[i], innerTopVertexes[0], innerTopVertexes[i]);
+		}
+	}
 	// -------------------------------
 
 	// Adding information about color
@@ -387,7 +501,80 @@ void MyMesh::GenerateSphere(float a_fRadius, int a_nSubdivisions, vector3 a_v3Co
 	Init();
 
 	// Replace this with your code
-	GenerateCube(a_fRadius * 2.0f, a_v3Color);
+
+	
+	glm::vec3 origin = vector3(0.0f, 0.0f, a_fRadius);
+	glm::vec3 bottomVertex = vector3(0.0f, 0.0f, 0.0f);
+	glm::vec3 topVertex = vector3(0.0f, 0.0f, 2 * a_fRadius);
+	// vertical space between differential circles
+	float circleSpacing = (2 * a_fRadius / 8);;
+	float angle = (2 * PI) / a_nSubdivisions;
+	// vectors for storing differential circle vertices
+	std::vector<vector3> centerCircle;
+	std::vector<vector3> topCircle1;
+	std::vector<vector3> topCircle2;
+	std::vector<vector3> topCircle3;
+	std::vector<vector3> bottomCircle1;
+	std::vector<vector3> bottomCircle2;
+	std::vector<vector3> bottomCircle3;
+
+	// Generates 7 differential circles of a sphere
+	// I tried to come up with a way to make the number differentials match subdivisions, but it ended up being too dificult to calculate ratio for each differential
+	// and I didn't have time to write a case for an even number of subdivisions
+	for (int i = 0; i < a_nSubdivisions; i++)
+	{
+		centerCircle.push_back(vector3(a_fRadius * cos(i * angle), a_fRadius * sin(i * angle), a_fRadius));
+
+		float dif1 = (9 * a_fRadius / 10); // Two circles closest to center circle
+		topCircle1.push_back(vector3(dif1 * cos(i * angle), dif1 * sin(i * angle), circleSpacing * 5.5));
+		bottomCircle1.push_back(vector3(dif1 * cos(i * angle), dif1 * sin(i * angle), circleSpacing * 2.5));
+
+		float dif2 = (5 * a_fRadius / 7);
+		topCircle2.push_back(vector3(dif2 * cos(i * angle), dif2 * sin(i * angle), circleSpacing * 6.5));
+		bottomCircle2.push_back(vector3(dif2 * cos(i * angle), dif2 * sin(i * angle), circleSpacing * 1.5));
+
+		float dif3 = (2 * a_fRadius / 5); // Two circles closest to ends of sphere
+		topCircle3.push_back(vector3(dif3 * cos(i * angle), dif3 * sin(i * angle), circleSpacing * 7.5));
+		bottomCircle3.push_back(vector3(dif3 * cos(i * angle), dif3 * sin(i * angle), circleSpacing * 0.5));
+	}
+
+	// generating geometry
+	for (int i = 0; i < a_nSubdivisions; i++)
+	{
+		if (i < a_nSubdivisions - 1)
+		{
+			// top and bottom caps
+			AddTri(topCircle3[i], topCircle3[i + 1], topVertex);
+			AddTri(bottomCircle3[i + 1], bottomCircle3[i], bottomVertex);
+
+			// quads between differential circles
+			AddQuad(bottomCircle1[i], bottomCircle1[i + 1], centerCircle[i], centerCircle[i + 1]);
+			AddQuad(centerCircle[i], centerCircle[i + 1], topCircle1[i], topCircle1[i + 1]);
+
+			AddQuad(bottomCircle2[i], bottomCircle2[i + 1], bottomCircle1[i], bottomCircle1[i + 1]);
+			AddQuad(topCircle1[i], topCircle1[i + 1], topCircle2[i], topCircle2[i + 1]);
+
+			AddQuad(bottomCircle3[i], bottomCircle3[i + 1], bottomCircle2[i], bottomCircle2[i + 1]);
+			AddQuad(topCircle2[i], topCircle2[i + 1], topCircle3[i], topCircle3[i + 1]);
+		}
+		// last shapes in the circle wrap back to the first vertices
+		else
+		{
+			// top and bottom caps
+			AddTri(topCircle3[i], topCircle3[0], topVertex);
+			AddTri(bottomCircle3[0], bottomCircle3[i], bottomVertex);
+
+			// quads between differential circles
+			AddQuad(bottomCircle1[i], bottomCircle1[0], centerCircle[i], centerCircle[0]);
+			AddQuad(centerCircle[i], centerCircle[0], topCircle1[i], topCircle1[0]);
+
+			AddQuad(bottomCircle2[i], bottomCircle2[0], bottomCircle1[i], bottomCircle1[0]);
+			AddQuad(topCircle1[i], topCircle1[0], topCircle2[i], topCircle2[0]);
+
+			AddQuad(bottomCircle3[i], bottomCircle3[0], bottomCircle2[i], bottomCircle2[0]);
+			AddQuad(topCircle2[i], topCircle2[0], topCircle3[i], topCircle3[0]);
+		}
+	}
 	// -------------------------------
 
 	// Adding information about color
