@@ -28,6 +28,10 @@ class MyCamera
 
 	matrix4 m_m4View; //View matrix
 	matrix4 m_m4Projection; //Projection Matrix
+
+	quaternion m_qOrientation;
+private:
+	vector3 MatrixToVectorView(matrix4 m_m4Matrix);
 public:
 	/*
 	USAGE: Constructor
@@ -230,6 +234,8 @@ public:
 	OUTPUT: ---
 	*/
 	void MoveSideways(float a_fDistance = 0.1f);
+
+	void RotateCamera(float a_fYaw, float a_fPitch);
 };
 
 } //namespace Simplex

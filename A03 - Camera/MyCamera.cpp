@@ -104,6 +104,8 @@ void Simplex::MyCamera::ResetCamera(void)
 	m_v3Target = vector3(0.0f, 0.0f, 0.0f); //What I'm looking at
 	m_v3Above = vector3(0.0f, 1.0f, 0.0f); //What is above the camera
 
+	m_qOrientation = quaternion();
+
 	m_bPerspective = true; //perspective view? False is Orthographic
 
 	m_fFOV = 45.0f; //Field of View
@@ -131,8 +133,9 @@ void Simplex::MyCamera::SetPositionTargetAndUpward(vector3 a_v3Position, vector3
 
 void Simplex::MyCamera::CalculateViewMatrix(void)
 {
-	//Calculate the look at most of your assignment will be reflected in this method
-	m_m4View = glm::lookAt(m_v3Position, m_v3Target, glm::normalize(m_v3Above - m_v3Position)); //position, target, upward
+	//Swap the commenting to make movement work
+	//m_m4View = glm::lookAt(m_v3Position, m_v3Target, glm::normalize(m_v3Above - m_v3Position)); //position, target, upward
+	m_m4View = glm::toMat4(m_qOrientation);
 }
 
 void Simplex::MyCamera::CalculateProjectionMatrix(void)
@@ -152,11 +155,57 @@ void Simplex::MyCamera::CalculateProjectionMatrix(void)
 
 void MyCamera::MoveForward(float a_fDistance)
 {
-	//The following is just an example and does not take in account the forward vector (AKA view vector)
-	m_v3Position += vector3(0.0f, 0.0f,-a_fDistance);
-	m_v3Target += vector3(0.0f, 0.0f, -a_fDistance);
-	m_v3Above += vector3(0.0f, 0.0f, -a_fDistance);
+	//Moves forward based on the view matrix
+	vector3 m_v3View = MatrixToVectorView(m_m4View);
+	m_v3Position += m_v3View * -a_fDistance;
+	m_v3Target += m_v3View * -a_fDistance;
+	m_v3Above += m_v3View * -a_fDistance;
 }
 
-void MyCamera::MoveVertical(float a_fDistance){}//Needs to be defined
-void MyCamera::MoveSideways(float a_fDistance){}//Needs to be defined
+void MyCamera::MoveVertical(float a_fDistance)
+{
+	//Moves locally up and down, although some cameras chose global axis for this in other programs
+	vector3 m_v3View = MatrixToVectorView(m_m4View);
+	//Manual calculation because glm::rotate won't work?
+	m_v3View = vector3(m_v3View.x, (m_v3View.y * cos(90)) - (m_v3View.z * sin(90)), (m_v3View.y * sin(90)) + (m_v3View.z * cos(90)));
+	m_v3Position += vector3(0, -a_fDistance, 0);
+	m_v3Target += vector3(0, -a_fDistance, 0);
+	m_v3Above += vector3(0, -a_fDistance, 0);
+}//Needs to be defined
+
+void MyCamera::MoveSideways(float a_fDistance)
+{
+	//Should move based on a local right axis, but is off a bit
+	vector3 m_v3View = MatrixToVectorView(m_m4View);
+	//Manual calculation because glm::rotate won't work?
+	m_v3View = vector3((m_v3View.x * cos(90)) + (m_v3View.z * sin(90)), m_v3View.y, (-m_v3View.x * sin(90)) + (m_v3View.z * cos(90)));
+	m_v3Position += m_v3View * -a_fDistance;
+	m_v3Target += m_v3View * -a_fDistance;
+	m_v3Above += m_v3View * -a_fDistance;
+}
+
+void MyCamera::RotateCamera(float a_fYaw, float a_fPitch)
+{
+	
+	vector3 m_v3View = MatrixToVectorView(m_m4View);
+	//glm::rotate won't work on the v3 or m4 here? Just did it manually, but this doesn't seem to work somehow...
+	m_v3View = vector3((m_v3View.x * cos(90)) + (m_v3View.z * sin(90)), m_v3View.y, (-m_v3View.x * sin(90)) + (m_v3View.z * cos(90)));
+
+	//Theoretically, rotates around a local up axis, just rolls here for some reason
+	quaternion q1 = glm::angleAxis(glm::radians(a_fYaw), m_v3Above);
+	m_qOrientation = m_qOrientation * q1;
+
+	//Theoretically, rotates around a local right axis, but sort of rotates like an euler rotation???
+	quaternion q2 = glm::angleAxis(glm::radians(a_fPitch), m_v3View);
+	m_qOrientation = m_qOrientation * q2;
+}
+
+//Should return the view vector from a given matrix, not positive this is the case
+vector3 MyCamera::MatrixToVectorView(matrix4 m_m4Matrix) 
+{
+	vector3 m_v3View;
+	m_v3View.x = m_m4Matrix[0][2];
+	m_v3View.y = m_m4Matrix[1][2];
+	m_v3View.z= m_m4Matrix[2][2];
+	return m_v3View;
+}
