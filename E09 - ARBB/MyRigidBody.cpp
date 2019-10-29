@@ -85,8 +85,61 @@ void MyRigidBody::SetModelMatrix(matrix4 a_m4ModelMatrix)
 	m_m4ToWorld = a_m4ModelMatrix;
 	
 	//your code goes here---------------------
-	m_v3MinG = m_v3MinL;
-	m_v3MaxG = m_v3MaxL;
+	std::vector<vector3> corners;
+
+	//bottom corners
+	corners.push_back(m_v3MinL);
+	corners.push_back(vector3(m_v3MaxL.x, m_v3MinL.y, m_v3MinL.z));
+	corners.push_back(vector3(m_v3MaxL.x, m_v3MinL.y, m_v3MaxL.z));
+	corners.push_back(vector3(m_v3MinL.x, m_v3MinL.y, m_v3MaxL.z));
+
+	//top corners
+	corners.push_back(vector3(m_v3MinL.x, m_v3MaxL.y, m_v3MaxL.z));
+	corners.push_back(vector3(m_v3MinL.x, m_v3MaxL.y, m_v3MinL.z));
+	corners.push_back(vector3(m_v3MaxL.x, m_v3MaxL.y, m_v3MinL.z));
+	corners.push_back(m_v3MaxL);
+
+	//convert from local space to world space
+	for (vector3 crnr : corners)
+	{
+		vector4 v4corner(crnr, 1.0f);
+		crnr = vector3(m_m4ToWorld * v4corner);
+	}
+
+	m_v3MinL = corners[0];
+	m_v3MaxL = corners[0];
+
+	//find new max from world space coords
+	for (vector3 crnr : corners)
+	{
+		//test x
+		if (m_v3MaxG.x < crnr.x)
+		{
+			m_v3MaxG.x = crnr.x;
+		}
+		else if (m_v3MinG.x > crnr.x)
+		{
+			m_v3MinG.x = crnr.x;
+		}
+		//test y
+		if (m_v3MaxG.y < crnr.y)
+		{
+			m_v3MaxG.y = crnr.y;
+		}
+		else if (m_v3MinG.y > crnr.y)
+		{
+			m_v3MinG.y = crnr.y;
+		}
+		//test z
+		if (m_v3MaxG.z < crnr.z)
+		{
+			m_v3MaxG.z = crnr.z;
+		}
+		else if (m_v3MinG.z > crnr.z)
+		{
+			m_v3MinG.z = crnr.z;
+		}
+	}
 	//----------------------------------------
 
 	//we calculate the distance between min and max vectors
