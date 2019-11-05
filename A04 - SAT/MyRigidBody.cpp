@@ -276,16 +276,154 @@ void MyRigidBody::AddToRenderList(void)
 
 uint MyRigidBody::SAT(MyRigidBody* const a_pOther)
 {
-	/*
-	Your code goes here instead of this comment;
+	// Based on explainantion in "Real-Time Collision Detection by Christer Ericson
 
-	For this method, if there is an axis that separates the two objects
-	then the return will be different than 0; 1 for any separating axis
-	is ok if you are not going for the extra credit, if you could not
-	find a separating axis you need to return 0, there is an enum in
-	Simplex that might help you [eSATResults] feel free to use it.
-	(eSATResults::SAT_NONE has a value of 0)
-	*/
+	// Object referrences
+	MyRigidBody* rbA = this;
+	MyRigidBody* rbB = a_pOther;
+
+	// Projection results
+	float rA;
+	float rB;
+
+	// Matrices for local space rotation
+	glm::mat3 rotation;
+	glm::mat3 absRotation;
+
+	// Rotation matrix to put b in a's local space
+	for (int i = 0; i < 3; i++)
+	{
+		for (int j = 0; j < 3; j++)
+		{
+			rotation[i][j] = glm::dot(rbA->GetModelMatrix()[i], rbB->GetModelMatrix()[j]);
+		}
+	}
+
+	// Create a translation matrix, then put it in a's local space
+	vector4 translation = vector4(rbB->GetCenterGlobal() - rbA->GetCenterGlobal(), 1.0f);
+	translation = vector4(
+		glm::dot(translation, vector4(rbA->GetModelMatrix() * vector4(AXIS_X, 0.0f))),
+		glm::dot(translation, vector4(rbA->GetModelMatrix() * vector4(AXIS_Y, 0.0f))),
+		glm::dot(translation, vector4(rbA->GetModelMatrix() * vector4(AXIS_Z, 0.0f))),
+		0.0f
+	);
+
+	// Fill matrix with absolute value of 
+	for (int i = 0; i < 3; i++)
+	{
+		for (int j = 0; j < 3; j++)
+		{
+			absRotation[i][j] = abs(rotation[i][j]) + DBL_EPSILON;
+		}
+	}
+
+	// Ax, Ay, Az
+	for (int i = 0; i < 3; i++)
+	{
+		// Get projected radii
+		rA = rbA->GetHalfWidth()[i];
+		rB = rbB->GetHalfWidth()[0] + absRotation[i][0] + rbB->GetHalfWidth()[1] + absRotation[i][1] + rbB->GetHalfWidth()[2] + absRotation[i][2];
+
+		// If the sum of their projected radii is less than the distance between the projection of their center points, collision is present
+		if (abs(translation[i]) > rA + rB)
+		{
+			if (i == 0)
+				return eSATResults::SAT_AX;
+			else if (i == 1)
+				return eSATResults::SAT_AY;
+			else
+				return eSATResults::SAT_AZ;
+		}
+	}
+
+	// Bx, By, Bz
+	for (int i = 0; i < 3; i++)
+	{
+		rA = rbA->GetHalfWidth()[0] + absRotation[i][0] + rbA->GetHalfWidth()[1] + absRotation[i][1] + rbA->GetHalfWidth()[2] + absRotation[i][2];
+		rB = rbB->GetHalfWidth()[i];
+
+		if (abs((translation[0] * rotation[0][i]) + (translation[1] * rotation[1][i]) + (translation[2] * rotation[2][i])) > rA + rB)
+		{
+			if(i == 0)
+				return eSATResults::SAT_BX;
+			else if (i == 1)
+				return eSATResults::SAT_BY;
+			else
+				return eSATResults::SAT_BZ;
+		}
+	}
+
+	// Ax x Bx
+	rA = rbA->GetHalfWidth()[1] * absRotation[2][0] + rbA->GetHalfWidth()[2] * absRotation[1][0];
+	rB = rbB->GetHalfWidth()[1] * absRotation[0][2] + rbB->GetHalfWidth()[2] * absRotation[0][1];
+	if (abs(translation[2] * rotation[1][0] - translation[1] * rotation[2][0]) > rA + rB)
+	{
+		return eSATResults::SAT_AXxBX;
+	}
+
+	// Ax x By
+	rA = rbA->GetHalfWidth()[1] * absRotation[2][1] + rbA->GetHalfWidth()[2] * absRotation[1][1];
+	rB = rbB->GetHalfWidth()[0] * absRotation[0][2] + rbB->GetHalfWidth()[2] * absRotation[0][0];
+	if (abs(translation[2] * rotation[1][1] - translation[1] * rotation[2][1]) > rA + rB)
+	{
+		return eSATResults::SAT_AXxBY;
+	}
+
+	// Ax x Bz
+	rA = rbA->GetHalfWidth()[1] * absRotation[2][2] + rbA->GetHalfWidth()[2] * absRotation[1][2];
+	rB = rbB->GetHalfWidth()[0] * absRotation[0][1] + rbB->GetHalfWidth()[1] * absRotation[0][0];
+	if (abs(translation[2] * rotation[1][2] - translation[1] * rotation[2][2]) > rA + rB)
+	{
+		return eSATResults::SAT_AXxBZ;
+	}
+
+	// Ay x Bx
+	rA = rbA->GetHalfWidth()[0] * absRotation[2][0] + rbA->GetHalfWidth()[2] * absRotation[0][0];
+	rB = rbB->GetHalfWidth()[1] * absRotation[1][2] + rbB->GetHalfWidth()[2] * absRotation[1][1];
+	if (abs(translation[0] * rotation[2][0] - translation[2] * rotation[0][0]) > rA + rB)
+	{
+		return eSATResults::SAT_AYxBX;
+	}
+
+	// Ay x By
+	rA = rbA->GetHalfWidth()[0] * absRotation[2][1] + rbA->GetHalfWidth()[2] * absRotation[0][1];
+	rB = rbB->GetHalfWidth()[0] * absRotation[1][2] + rbB->GetHalfWidth()[2] * absRotation[1][0];
+	if (abs(translation[0] * rotation[2][1] - translation[2] * rotation[0][1]) > rA + rB)
+	{
+		return eSATResults::SAT_AYxBY;
+	}
+
+	// Ay x Bz
+	rA = rbA->GetHalfWidth()[0] * absRotation[2][2] + rbA->GetHalfWidth()[2] * absRotation[0][2];
+	rB = rbB->GetHalfWidth()[0] * absRotation[1][1] + rbB->GetHalfWidth()[1] * absRotation[1][0];
+	if (abs(translation[0] * rotation[2][2] - translation[2] * rotation[0][2]) > rA + rB)
+	{
+		return eSATResults::SAT_AYxBZ;
+	}
+
+	// Az x Bx
+	rA = rbA->GetHalfWidth()[0] * absRotation[1][0] + rbA->GetHalfWidth()[1] * absRotation[0][0];
+	rB = rbB->GetHalfWidth()[1] * absRotation[2][2] + rbB->GetHalfWidth()[2] * absRotation[2][1];
+	if (abs(translation[1] * rotation[0][0] - translation[0] * rotation[1][0]) > rA + rB)
+	{
+		return eSATResults::SAT_AZxBX;
+	}
+
+	// Az x By
+	rA = rbA->GetHalfWidth()[0] * absRotation[1][1] + rbA->GetHalfWidth()[1] * absRotation[0][1];
+	rB = rbB->GetHalfWidth()[0] * absRotation[2][2] + rbB->GetHalfWidth()[2] * absRotation[2][0];
+	if (abs(translation[1] * rotation[0][1] - translation[0] * rotation[1][1]) > rA + rB)
+	{
+		return eSATResults::SAT_AZxBY;
+	}
+
+	// Az x Bz
+	rA = rbA->GetHalfWidth()[0] * absRotation[1][2] + rbA->GetHalfWidth()[2] * absRotation[0][2];
+	rB = rbB->GetHalfWidth()[0] * absRotation[2][1] + rbB->GetHalfWidth()[1] * absRotation[2][0];
+	if (abs(translation[1] * rotation[0][2] - translation[0] * rotation[1][2]) > rA + rB)
+	{
+		return eSATResults::SAT_AZxBZ;
+	}
 
 	//there is no axis test that separates this two objects
 	return eSATResults::SAT_NONE;
