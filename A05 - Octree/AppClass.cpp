@@ -30,6 +30,7 @@ void Application::InitVariables(void)
 		}
 	}
 	m_uOctantLevels = 1;
+	m_pRoot = new MyOctant(m_uOctantLevels, 5);
 	m_pEntityMngr->Update();
 }
 void Application::Update(void)
@@ -46,8 +47,20 @@ void Application::Update(void)
 	//Update Entity Manager
 	m_pEntityMngr->Update();
 
-	//Add objects to render list
-	m_pEntityMngr->AddEntityToRenderList(-1, true);
+	if (m_uOctantID == -1)
+	{
+		m_pEntityMngr->AddEntityToRenderList(-1, true);
+	}
+	else
+	{
+		for (int i = 0; i < m_pEntityMngr->GetEntityCount(); i++)
+		{
+			if (m_pEntityMngr->IsInDimension(i, m_uOctantID))
+			{
+				m_pEntityMngr->AddEntityToRenderList(i, true);
+			}
+		}
+	}
 }
 void Application::Display(void)
 {
@@ -55,8 +68,15 @@ void Application::Display(void)
 	ClearScreen();
 
 	//display octree
-	//m_pRoot->Display();
-	
+	if (m_uOctantID == -1)
+	{
+		m_pRoot->Display();
+	}
+	else
+	{
+		m_pRoot->Display(m_uOctantID);
+	}
+
 	// draw a skybox
 	m_pMeshMngr->AddSkyboxToRenderList();
 	
@@ -76,4 +96,6 @@ void Application::Release(void)
 {
 	//release GUI
 	ShutdownGUI();
+
+	SafeDelete(m_pRoot);
 }
